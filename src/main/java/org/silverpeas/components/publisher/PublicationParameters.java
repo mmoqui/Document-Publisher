@@ -32,6 +32,7 @@ public class PublicationParameters {
 
     private int threadCount = 100;
     private int publicationCount = 100;
+    private int documentCount = 1;
     private String componentId;
     private String topicId = "0";
     private String authorId = "0";
@@ -105,5 +106,18 @@ public class PublicationParameters {
     @SuppressWarnings("unused")
     public void setAuthorId(String authorId) {
         this.authorId = authorId;
+    }
+
+    /**
+     * Gets the number of documents to attach to each publication.
+     * @return the number of documents to attach to each publication.
+     */
+    public int getDocumentCount() {
+        return documentCount;
+    }
+
+    public PublicationParameters setDocumentCount(int documentCount) {
+        this.documentCount = documentCount;
+        return this;
     }
 }

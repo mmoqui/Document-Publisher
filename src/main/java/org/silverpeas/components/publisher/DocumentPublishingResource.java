@@ -101,8 +101,11 @@ public class DocumentPublishingResource implements SilverpeasWebResource {
                         sendBackNotFound(instanceId));
 
         SilverLogger.getLogger(this)
-                .info("{0} PARAMETERS: {1} threads and {2} creations of publications with one attachment per thread",
-                        result.getProcess(), parameters.getThreadCount(), parameters.getPublicationCount());
+                .info("{0} PARAMETERS: {1} threads with for each {2} creation(s) of publications with {3} attachment(s)",
+                        result.getProcess(),
+                        parameters.getThreadCount(),
+                        parameters.getPublicationCount(),
+                        parameters.getDocumentCount());
         SilverLogger.getLogger(this).info("{0} WHOLE TIME : {1}s", result.getProcess(), result.getTime());
         SilverLogger.getLogger(this).info("{0} TIME MEAN  : {1}ms", result.getProcess(), result.getTimeMean());
         return result;
@@ -139,7 +142,8 @@ public class DocumentPublishingResource implements SilverpeasWebResource {
             Instant end = Instant.now();
             result.setTime(Duration.between(start, end).getSeconds());
             result.setTimeMean(Duration.between(start, end).toMillis() /
-                    ((long) parameters.getPublicationCount() * parameters.getThreadCount()));
+                    ((long) parameters.getPublicationCount() * parameters.getDocumentCount()
+                            * parameters.getThreadCount()));
         } catch (ManagedThreadPoolException e) {
             throw new InternalServerErrorException(e);
         }
@@ -166,9 +170,10 @@ public class DocumentPublishingResource implements SilverpeasWebResource {
         String title = isDefined(metaData.getTitle()) ? metaData.getTitle() : FILENAME;
         String description = isDefined(metaData.getComments()) ? metaData.getComments() : metaData.getSubject();
 
-        int count = parameters.getPublicationCount();
+        int pubCount = parameters.getPublicationCount();
+        int docCount = parameters.getDocumentCount();
         try {
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < pubCount; i++) {
                 Date now = new Date();
                 PublicationDetail publication = PublicationDetail.builder()
                         .setPk(new PublicationPK(null, instanceId))
@@ -180,25 +185,28 @@ public class DocumentPublishingResource implements SilverpeasWebResource {
                 publication.getPK().setId(pubId);
 
                 byte[] content = readContent();
-                SimpleAttachment file = SimpleAttachment.builder(publication.getLanguage())
-                        .setFilename(FILENAME)
-                        .setTitle(title)
-                        .setDescription(description)
-                        .setSize(content.length)
-                        .setContentType(metaData.getContentType())
-                        .setCreationData(parameters.getAuthorId(), now)
-                        .build();
                 boolean versioningActive = getBooleanValue(componentInstance.getParameterValue(VERSION_MODE));
-                SimpleDocument document;
-                SimpleDocumentPK docId = new SimpleDocumentPK(null, instanceId);
-                if (versioningActive) {
-                    document = new HistorisedDocument(docId, pubId, 0, file);
-                    document.setPublicDocument(true);
-                    document.setDocumentType(DocumentType.attachment);
-                } else {
-                    document = new SimpleDocument(docId, pubId, 0, false, file);
+                for (int j = 0; j < docCount; j++) {
+                    SimpleAttachment file = SimpleAttachment.builder(publication.getLanguage())
+                            .setFilename(FILENAME)
+                            .setTitle(title + " " + j)
+                            .setDescription(description)
+                            .setSize(content.length)
+                            .setContentType(metaData.getContentType())
+                            .setCreationData(parameters.getAuthorId(), now)
+                            .build();
+
+                    SimpleDocument document;
+                    SimpleDocumentPK docId = new SimpleDocumentPK(null, instanceId);
+                    if (versioningActive) {
+                        document = new HistorisedDocument(docId, pubId, 0, file);
+                        document.setPublicDocument(true);
+                        document.setDocumentType(DocumentType.attachment);
+                    } else {
+                        document = new SimpleDocument(docId, pubId, 0, false, file);
+                    }
+                    attachmentService.createAttachment(document, new ByteArrayInputStream(content));
                 }
-                attachmentService.createAttachment(document, new ByteArrayInputStream(content));
             }
         } catch (Exception e) {
             SilverLogger.getLogger(this).error(e);
