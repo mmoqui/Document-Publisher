@@ -27,6 +27,7 @@ package org.silverpeas.components.publisher;
 import org.silverpeas.components.kmelia.service.KmeliaService;
 import org.silverpeas.core.admin.component.model.SilverpeasComponentInstance;
 import org.silverpeas.core.admin.component.service.SilverpeasComponentInstanceProvider;
+import org.silverpeas.core.admin.user.model.SilverpeasRole;
 import org.silverpeas.core.admin.user.model.User;
 import org.silverpeas.core.annotation.WebService;
 import org.silverpeas.core.contribution.attachment.AttachmentService;
@@ -206,6 +207,11 @@ public class DocumentPublishingResource implements SilverpeasWebResource {
                         document = new SimpleDocument(docId, pubId, 0, false, file);
                     }
                     attachmentService.createAttachment(document, new ByteArrayInputStream(content));
+                }
+
+                if (publication.isDraft()) {
+                    kmeliaService.draftOutPublicationWithoutNotifications(publication.getPK(), topicId,
+                            SilverpeasRole.PUBLISHER.getName());
                 }
             }
         } catch (Exception e) {
